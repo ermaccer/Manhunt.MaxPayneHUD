@@ -11,14 +11,17 @@ int pTextureDictionary;
 
 int pAwareStatus;
 int pCashDamageTextures[TOTAL_DAMAGE_TEXTURES] = {};
-
+int pHellDamageTextures[TOTAL_DAMAGE_TEXTURES] = {};
+int pPigDamageTextures[TOTAL_DAMAGE_TEXTURES] = {};
+int pBunnyDamageTextures[TOTAL_DAMAGE_TEXTURES] = {};
+int pBulletTimeTextures[16] = {};
 
 wchar_t wt[260] = {};
 char temp[260] = {};
 
 
 bool bItemChanged;
-int nSelectedItem;\
+int nSelectedItem;
 int  pWeaponIcons[4] = {};
 CRGBA  pWeaponColors[4] = {};
 
@@ -31,9 +34,17 @@ int& nCurrentBlueItem = *(int*)0x7C9CEC;
 int& nCurrentGreenItem = *(int*)0x7C9CF0;
 int& nCurrentLureItem = *(int*)0x7C9CF4;
 int& iTimer = *(int*)0x756270;
+int& iCurrentSkin = *(int*)0x6A94C0;
 
 int timer = iTimer;
 
+
+// bullet time stuff
+int nCurrentBulletTimeAmount = 0;
+bool bBulletTimeEnabled = false;
+int player = 0;
+bool bBulletTimeSoundPlayed = false;
+int iBulletTimeTimer = iTimer;
 
 void eMPHUD::LoadResources()
 {
@@ -60,6 +71,61 @@ void eMPHUD::LoadResources()
 				pCashDamageTextures[i] = 0;
 			}
 		}
+		for (int i = 0; i < TOTAL_DAMAGE_TEXTURES; i++)
+		{
+			char temp[64];
+			sprintf_s(temp, "hellFrame_%d", i);
+			pHellDamageTextures[i] = LoadTexture(pTextureDictionary, temp);
+			if (pHellDamageTextures[i])
+				printf("MaxPayneHUD | Loaded texture %s!\n", temp);
+			else
+			{
+				printf("MaxPayneHUD | Failed to load texture %s!\n", temp);
+				pHellDamageTextures[i] = 0;
+			}
+		}
+		for (int i = 0; i < TOTAL_DAMAGE_TEXTURES; i++)
+		{
+			char temp[64];
+			sprintf_s(temp, "bunnyFrame_%d", i);
+			pBunnyDamageTextures[i] = LoadTexture(pTextureDictionary, temp);
+			if (pBunnyDamageTextures[i])
+				printf("MaxPayneHUD | Loaded texture %s!\n", temp);
+			else
+			{
+				printf("MaxPayneHUD | Failed to load texture %s!\n", temp);
+				pBunnyDamageTextures[i] = 0;
+			}
+		}
+		for (int i = 0; i < TOTAL_DAMAGE_TEXTURES; i++)
+		{
+			char temp[64];
+			sprintf_s(temp, "pigFrame_%d", i);
+			pPigDamageTextures[i] = LoadTexture(pTextureDictionary, temp);
+			if (pPigDamageTextures[i])
+				printf("MaxPayneHUD | Loaded texture %s!\n", temp);
+			else
+			{
+				printf("MaxPayneHUD | Failed to load texture %s!\n", temp);
+				pPigDamageTextures[i] = 0;
+			}
+		}
+
+		for (int i = 0; i < 16; i++)
+		{
+			char temp[64];
+			sprintf_s(temp, "bulletTime_%d", i);
+			pBulletTimeTextures[i] = LoadTexture(pTextureDictionary, temp);
+			if (pBulletTimeTextures[i])
+				printf("MaxPayneHUD | Loaded texture %s!\n", temp);
+			else
+			{
+				printf("MaxPayneHUD | Failed to load texture %s!\n", temp);
+				pBulletTimeTextures[i] = 0;
+			}
+		}
+
+
 		pAwareStatus = LoadTexture(pTextureDictionary, "awareStatus");
 
 		if (pAwareStatus)
@@ -75,7 +141,11 @@ void eMPHUD::LoadResources()
 
 int eMPHUD::ProcessHealthMeter()
 {
-	int result = DAMAGE_14;
+	int damageID = DAMAGE_14;
+	int texture = 0;
+
+
+
 
 	CEntity* plr = FindPlayer();
 
@@ -83,46 +153,62 @@ int eMPHUD::ProcessHealthMeter()
 	if (plr)
 	{
 		if (plr->fHealth >= 100.0f)
-			result = DAMAGE_14;
+			damageID = DAMAGE_14;
 		if (plr->fHealth < 95.0F)
-			result = DAMAGE_13;
+			damageID = DAMAGE_13;
 		if (plr->fHealth < 80.0F)
-			result = DAMAGE_12;
+			damageID = DAMAGE_12;
 		if (plr->fHealth < 75.0F)
-			result = DAMAGE_9;
+			damageID = DAMAGE_9;
 		if (plr->fHealth < 65.0F)
-			result = DAMAGE_8;
+			damageID = DAMAGE_8;
 		if (plr->fHealth < 55.0F)
-			result = DAMAGE_7;
+			damageID = DAMAGE_7;
 		if (plr->fHealth < 50.0F)
-			result = DAMAGE_6;
+			damageID = DAMAGE_6;
 		if (plr->fHealth < 45.0F)
-			result = DAMAGE_5;
+			damageID = DAMAGE_5;
 		if (plr->fHealth < 40.0F)
-			result = DAMAGE_4;
+			damageID = DAMAGE_4;
 		if (plr->fHealth < 30.0F)
-			result = DAMAGE_3;
+			damageID = DAMAGE_3;
 		if (plr->fHealth < 25.0F)
-			result = DAMAGE_2;
+			damageID = DAMAGE_2;
 		if (plr->fHealth < 10.0F)
-			result = DAMAGE_1;
+			damageID = DAMAGE_1;
 		if (plr->fHealth < 0.0F)
-			result = DAMAGE_0;
+			damageID = DAMAGE_0;
 	}
 
-	return (TOTAL_DAMAGE_TEXTURES - 1) - result;
+	int result = (TOTAL_DAMAGE_TEXTURES - 1) - damageID;
+
+	switch (iCurrentSkin)
+	{
+	case 0:  texture = pCashDamageTextures[result];
+		break;
+	case 1:  texture = pBunnyDamageTextures[result];
+		break;
+	case 2:  texture = pHellDamageTextures[result];
+		break;
+	case 3:  texture = pPigDamageTextures[result];
+		break;
+	default:  texture = pCashDamageTextures[result];
+		break;
+	}
+
+	return texture;
 }
 
 void eMPHUD::HookDrawLifeBar(float posx, float posY, float scalex, float scaley, int r, int g, int b, int a, int pTexture)
 {
 	static float y = posY;
 	pHealthPosY = y;
-//	
+
 }
 
 void eMPHUD::HookStatusTexture(float posx, float posY, float scalex, float scaley, int r, int g, int b, int a, int pTexture)
 {
-	DrawTexture(0.0F, pHealthPosY, 0.075f, 0.2f, r,g,b,a, pCashDamageTextures[ProcessHealthMeter()]);
+	DrawTexture(0.0F, pHealthPosY, 0.065f, 0.2f, r,g,b,a, ProcessHealthMeter());
 	if (FindPlayer())
 	{
 		int plrStatus = *(int*)(*(int*)0x715B9C + 2416);
@@ -134,10 +220,11 @@ void eMPHUD::HookStatusTexture(float posx, float posY, float scalex, float scale
 			DrawTexture(x - 0.034f, *(float*)0x7CE278 - 0.04, 0.08f, 0.08f, 255, 255, 255, 128, pAwareStatus);
 		}
 	}
-
-	printf("timer %d game %d   \r", timer, iTimer);
-
-	//DrawTexture(posx - 0.79f, posY + 0.14f, 0.05f, 0.05f, r, g, b, a, pAwareStatus);
+	DrawTexture(0.063f, pHealthPosY + 0.085f, 0.022f, 0.11f, 255,255,255,180, pBulletTimeTextures[nCurrentBulletTimeAmount]);
+	if (bBulletTimeEnabled)
+	{
+		DrawTexture(*(float*)0x7CF250, *(float*)0x7CF250, *(float*)0x7CF258, *(float*)0x7CF25C, 255, 102, 0, 15, 0);
+	}
 }
 
 void eMPHUD::HookResourcesLoader()
@@ -156,7 +243,6 @@ void eMPHUD::HookClipAmountTextTwo(char * text, float posX, float posY, float si
 	if (strcmp(text, " / ") == 0)
 		text = (char*)" +";
 	PrintText(text, posX, posY + 0.15f, sizex, sizey, unk, font);
-
 
 }
 
@@ -240,7 +326,9 @@ void eMPHUD::HookShowItems()
 void eMPHUD::HookResetTimer()
 {
 	//bItemChanged = false;
-	timer = 0;
+	iBulletTimeTimer = 0;
+	bBulletTimeEnabled = false;
+	nCurrentBulletTimeAmount = 15;
 	Call<0x5B5CD0>();
 }
 
@@ -281,6 +369,126 @@ std::string eMPHUD::GetCollectableNameAsChar()
 
 
 	}
+
+}
+
+void __declspec(naked) eMPHUD::HookIncreaseExecuted()
+{
+	static int jmpPoint = 0x5B62E7;
+	_asm
+	{
+		add ds:0x7B7D84, 1
+		add nCurrentBulletTimeAmount, 4
+		jmp jmpPoint
+	}
+}
+
+void __declspec(naked) eMPHUD::HookIncreaseKilled()
+{
+	static int jmpContinue = 0x5B63A7;
+	_asm {
+		add ds:0x7B7DA0, 1
+		add nCurrentBulletTimeAmount, 2
+		jmp jmpContinue
+	}
+}
+
+void __declspec(naked) eMPHUD::HookBulletTimeControl()
+{
+
+	static int jmpPoint = 0x463700;
+	static int jmpPointFalse = 0x463653;
+	_asm mov player, ebp;
+
+
+	BulletTimeControl();
+
+
+	if (*(int*)(player + 1272)) // is inventory pressed?
+	{
+		if (nCurrentBulletTimeAmount > 0)
+		{
+			bBulletTimeEnabled ^= 1;
+			bBulletTimeSoundPlayed = false;
+		}
+
+	}
+	else
+	_asm jmp jmpPointFalse
+
+
+
+
+
+
+
+	_asm jmp jmpPoint;
+
+}
+
+void __declspec(naked) eMPHUD::HookTimeControl()
+{
+	if (!bBulletTimeEnabled)
+	{
+		_asm {
+			mov eax, ebx
+			sub eax, ds:0x756278
+			mov ds:0x756280, eax
+		}
+	}
+	else
+	{
+		_asm {
+			mov ds:0x756280, 5
+		}
+	}
+}
+
+void eMPHUD::ProcessBarDepletion()
+{
+	if (iTimer - iBulletTimeTimer <= 600) return;
+	nCurrentBulletTimeAmount--;
+	iBulletTimeTimer = iTimer;
+}
+
+void eMPHUD::BulletTimeControl()
+{
+
+	if (nCurrentBulletTimeAmount > 15)
+		nCurrentBulletTimeAmount = 15;
+
+	if (nCurrentBulletTimeAmount < 0)
+		nCurrentBulletTimeAmount = 0;
+
+	if (nCurrentBulletTimeAmount == 0)
+		bBulletTimeEnabled = false;
+
+
+
+	if (bBulletTimeEnabled)
+	{
+
+
+		Memory::VP::Nop(0x4D8845, 11);
+		Memory::VP::Patch<int>(0x756280, 8);
+		if (!bBulletTimeSoundPlayed)
+		{
+			Call<0x456280, int, float>(6, *(float*)0x7C9D10);
+			bBulletTimeSoundPlayed = true;
+		}
+		ProcessBarDepletion();
+
+	}
+	else
+	{
+		// restore code
+		Memory::VP::Patch<short>(0x4D8845, 0xD889);
+		Memory::VP::Patch<int>(0x4D8847, 0x6278052B);
+		Memory::VP::Patch<short>(0x4D8847 + 4, 0x0075);
+		Memory::VP::Patch<int>(0x4D884D, 0x756280A3);
+		Memory::VP::Patch<char>(0x4D884D + 4, 0x00);
+	}
+
 
 }
 

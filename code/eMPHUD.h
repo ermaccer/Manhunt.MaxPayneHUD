@@ -36,4 +36,11 @@ namespace eMPHUD {
 	void  HookResetTimer();
 	std::string GetCollectableNameAsChar();
 
+	// bullet time
+	void HookIncreaseExecuted();
+	void HookIncreaseKilled();
+	void HookBulletTimeControl();
+	void HookTimeControl();
+	void ProcessBarDepletion();
+	void BulletTimeControl();
 }

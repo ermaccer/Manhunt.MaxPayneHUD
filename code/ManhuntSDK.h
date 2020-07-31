@@ -332,11 +332,7 @@ struct CRGBA{
 
 
 struct CEntity {
-	int      field_0;
-	int      field_4;
-	int      field_8;
-	int      field_C;
-	int      field_10;
+	char     pad[20];
 	float    fHealth;
 	int      field_18;
 	CVector  pos;
